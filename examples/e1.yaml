@@ -1,0 +1,44 @@
+gopackage: "kipsql"
+
+stringType: &stringType
+  name: "string"
+boolType: &boolType
+  name: "bool"
+intType: &intType
+  name: "int"
+timeType: &timeType
+  name: "time.Time"
+  gopackage: "time"
+
+tables:
+  - name: "messages"
+    columns:
+      - name: "user_id"
+        type: *stringType
+      - name: "message_id"
+        type: *stringType
+      - name: "content"
+        type: *stringType
+      - name: "created_at"
+        type: *timeType
+        gofield: "created_at"
+      - name: "updated_at"
+        type: *timeType
+      - name: "is_deleted"
+        type: *boolType
+    primarykey:
+      - "user_id"
+      - "message_id"
+
+  - name: "communities"
+    gostruct: "Comm"
+    columns:
+      - name: "community_id"
+        type: *stringType
+      - name: "vote_count"
+        type: *intType
+      - name: "description"
+        type: *stringType
+        nullable: true
+    primarykey:
+      - "community_id"

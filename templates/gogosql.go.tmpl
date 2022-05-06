@@ -1,0 +1,120 @@
+package {{ .PackageName }}
+
+import (
+  {{- range $key, $val := .Imports }}
+  "{{$key}}"
+  {{- end}}
+  "cloud.google.com/go/spanner"
+)
+
+type SpannerTX interface {
+	ReadRow(context.Context, string, spanner.Key, []string) (*spanner.Row, error)
+}
+
+// Column Definitions
+{{- range .Tables }}
+type {{ .GoColumns }} struct {
+    {{- range .Columns }}
+    {{ .GoColumn }} string
+    {{- end }}
+    All []string
+}
+{{- end }}
+
+// Table Definitions
+{{- range .Tables }}
+type {{ .GoTable }} struct {
+    Columns {{ .GoColumns }}
+    TableName string
+}
+
+{{- end }}
+
+// All Table Definitions
+type GoGoTables struct {
+    {{- range .Tables }}
+    {{ .GoTableVar }} {{ .GoTable }}
+    {{- end }}
+}
+
+// Record Definitions
+{{- range .Tables }}
+type {{ .GoStruct }} struct {
+    {{- range .Columns }}
+    {{ .GoField }} {{ .Type.Name }} `spanner:"{{ .Name }}"`
+    {{- end }}
+}
+type Partial{{ .GoStruct }} struct {
+    {{- range .Columns }}
+    {{ .GoField }} *{{ .Type.Name }}
+    {{- end }}
+}
+{{- end }}
+
+var (
+    {{ .TablesVarName }} = GoGoTables{
+        {{- range .Tables }}
+        {{ .GoTableVar }}: {{ .GoTable }}{
+            Columns: {{ .GoColumns }}{
+                {{- range .Columns }}
+                {{ .GoColumn }}: "{{ .Name }}",
+                {{- end }}
+                All: []string{
+                    {{- range .Columns }}
+                    "{{ .Name }}",
+                    {{- end }}
+                },
+            },
+            TableName: "{{ .Name }}",
+        },
+        {{- end }}
+  }
+)
+
+// Methods
+{{- range .Tables }}
+func ({{ .GoTable }}) NewSpannerKey(
+{{- range .PKColumns }}
+    {{ .GoArg }},
+{{- end }}
+) spanner.Key {
+	return spanner.Key{
+        {{- range .PKColumns }}
+            {{ .GoArg }},
+        {{- end }}
+        }
+}
+
+func (t {{ .GoTable }}) ReadRow(ctx context.Context, tx SpannerTX, key spanner.Key) (*{{ .GoStruct }}, error) {
+	row, err := tx.ReadRow(ctx, t.TableName, key, t.Columns.All)
+	if err != nil {
+		return nil, err
+	}
+
+	r := &{{ .GoStruct }}{}
+	err = row.ToStruct(r)
+	return r, err
+}
+
+func (r {{ .GoStruct }}) SpannerKey() spanner.Key {
+	return spanner.Key{
+        {{- range .PKColumns }}
+            r.{{ .GoField }},
+        {{- end }}
+        }
+}
+
+func (r Partial{{ .GoStruct }}) SpannerKey() (spanner.Key, error) {
+    {{- range .PKColumns }}
+    if r.{{ .GoField }} == nil {
+        return nil, fmt.Errorf("{{ .GoField }} is required to make a spanner key for: %v", r)
+    }
+    {{- end }}
+
+    return spanner.Key{
+        {{- range .PKColumns }}
+            *r.{{ .GoField }},
+        {{- end }}
+        }, nil
+    }
+{{ end }}
