@@ -37,6 +37,15 @@ type GoGoTables struct {
     {{- end }}
 }
 
+// PrimaryKey Definitions
+{{- range .Tables }}
+type {{ .GoPrimaryKey }} struct {
+    {{- range .PKColumns }}
+    {{ .GoField }} {{ .Type.Name }}
+    {{- end }}
+}
+{{- end }}
+
 // Record Definitions
 {{- range .Tables }}
 type {{ .GoStruct }} struct {
@@ -73,12 +82,12 @@ var (
 
 // Methods
 {{- range .Tables }}
-func ({{ .GoTable }}) NewSpannerKey(
+func ({{ .GoTable }}) PrimaryKey (
 {{- range .PKColumns }}
     {{ .GoArg }},
 {{- end }}
-) spanner.Key {
-	return spanner.Key{
+) {{ .GoPrimaryKey }} {
+	return {{ .GoPrimaryKey }}{
         {{- range .PKColumns }}
             {{ .GoArg }},
         {{- end }}
@@ -96,25 +105,34 @@ func (t {{ .GoTable }}) ReadRow(ctx context.Context, tx SpannerTX, key spanner.K
 	return r, err
 }
 
-func (r {{ .GoStruct }}) SpannerKey() spanner.Key {
-	return spanner.Key{
+func (r {{ .GoStruct }}) PrimaryKey() {{ .GoPrimaryKey }} {
+	return {{.GoPrimaryKey }}{
         {{- range .PKColumns }}
             r.{{ .GoField }},
         {{- end }}
         }
 }
 
-func (r Partial{{ .GoStruct }}) SpannerKey() (spanner.Key, error) {
+func (r Partial{{ .GoStruct }}) PrimaryKey() ({{ .GoPrimaryKey }}, error) {
+    {{- $pk := .GoPrimaryKey }}
     {{- range .PKColumns }}
     if r.{{ .GoField }} == nil {
-        return nil, fmt.Errorf("{{ .GoField }} is required to make a spanner key for: %v", r)
+        return {{ $pk }}{}, fmt.Errorf("{{ .GoField }} is required to make a spanner key for: %v", r)
     }
     {{- end }}
 
-    return spanner.Key{
+    return {{ .GoPrimaryKey }}{
         {{- range .PKColumns }}
             *r.{{ .GoField }},
         {{- end }}
         }, nil
     }
+
+func (r {{ .GoPrimaryKey }}) SpannerKey() spanner.Key {
+	return spanner.Key{
+        {{- range .PKColumns }}
+            r.{{ .GoField }},
+        {{- end }}
+        }
+}
 {{ end }}

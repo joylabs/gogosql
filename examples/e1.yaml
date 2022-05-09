@@ -1,14 +1,15 @@
 gopackage: "kipsql"
 
-stringType: &stringType
-  name: "string"
-boolType: &boolType
-  name: "bool"
-intType: &intType
-  name: "int"
-timeType: &timeType
-  name: "time.Time"
-  gopackage: "time"
+typeDefinitions:
+  - &stringType
+    name: "string"
+  - &boolType
+    name: "bool"
+  - &intType
+    name: "int"
+  - &timeType
+    name: "time.Time"
+    gopackage: "time"
 
 tables:
   - name: "messages"
@@ -26,7 +27,7 @@ tables:
         type: *timeType
       - name: "is_deleted"
         type: *boolType
-    primarykey:
+    primaryKey:
       - "user_id"
       - "message_id"
 
@@ -40,5 +41,5 @@ tables:
       - name: "description"
         type: *stringType
         nullable: true
-    primarykey:
+    primaryKey:
       - "community_id"

@@ -38,15 +38,21 @@ type TableConfig struct {
 	Name          string
 	GoStruct      *string `yaml:",omitempty"`
 	GoTable       *string `yaml:",omitempty"`
-	GoTableVar    *string `yaml:",omitempty"`
+	GoPrimaryKey  *string `yaml:"goprimaryKey,omitempty"`
+	GoTableVar    *string `yaml:"gotableVar,omitempty"`
 	GoColumns     *string `yaml:",omitempty"`
 	Columns       []*ColumnConfig
-	PrimaryKey    []*ColumnReference
+	PrimaryKey    []*ColumnReference `yaml:"primaryKey"`
 }
 
 type SQLConfig struct {
-	GoPackage *string `yaml:",omitempty"`
-	Tables    []*TableConfig
+	TypeDefinitions      []interface{} `yaml:"typeDefinitions"`
+	GoGoPrefix           *string       `yaml:",omitempty"`
+	GoGoTableSuffix      *string       `yaml:",omitempty"`
+	GoGoColumnsSuffix    *string       `yaml:",omitempty"`
+	GoGoPrimaryKeySuffix *string       `yaml:",omitempty"`
+	GoPackage            *string       `yaml:",omitempty"`
+	Tables               []*TableConfig
 }
 
 type GoTableConfig struct {
@@ -66,7 +72,7 @@ func (cfg *ColumnConfig) FillPackageConfig(gocfg *GoPackageConfig) {
 	}
 }
 
-func (cfg *ColumnConfig) FillDefaults() {
+func (cfg *ColumnConfig) FillDefaults(pfg *SQLConfig) {
 	if cfg.GoField == nil {
 		s := strcase.ToCamel(cfg.Name)
 		cfg.GoField = &s
@@ -122,7 +128,7 @@ func (cfg *TableConfig) FillPackageConfig(gocfg *GoPackageConfig) {
 	}
 }
 
-func (cfg *TableConfig) FillDefaults() {
+func (cfg *TableConfig) FillDefaults(pfg *SQLConfig) {
 	if cfg.GoStruct == nil {
 		s := strcase.ToCamel(pl.Singular(cfg.Name))
 		cfg.GoStruct = &s
@@ -134,17 +140,22 @@ func (cfg *TableConfig) FillDefaults() {
 	}
 
 	if cfg.GoTable == nil {
-		s := "GoGo" + *cfg.GoTableVar + "Table"
+		s := *pfg.GoGoPrefix + *cfg.GoTableVar + *pfg.GoGoTableSuffix
 		cfg.GoTable = &s
 	}
 
 	if cfg.GoColumns == nil {
-		s := "GoGo" + *cfg.GoTableVar + "Columns"
+		s := *pfg.GoGoPrefix + *cfg.GoTableVar + *pfg.GoGoColumnsSuffix
 		cfg.GoColumns = &s
 	}
 
+	if cfg.GoPrimaryKey == nil {
+		s := *pfg.GoGoPrefix + *cfg.GoTableVar + *pfg.GoGoPrimaryKeySuffix
+		cfg.GoPrimaryKey = &s
+	}
+
 	for _, col := range cfg.Columns {
-		col.FillDefaults()
+		col.FillDefaults(pfg)
 	}
 }
 
@@ -174,13 +185,35 @@ func (cfg *SQLConfig) FillDefaults() {
 		cfg.GoPackage = &s
 	}
 
+	if cfg.GoGoPrefix == nil {
+		s := "GoGo"
+		cfg.GoGoPrefix = &s
+	}
+
+	if cfg.GoGoTableSuffix == nil {
+		s := "Table"
+		cfg.GoGoTableSuffix = &s
+	}
+
+	if cfg.GoGoColumnsSuffix == nil {
+		s := "Column"
+		cfg.GoGoColumnsSuffix = &s
+	}
+
+	if cfg.GoGoPrimaryKeySuffix == nil {
+		s := "PrimaryKey"
+		cfg.GoGoPrimaryKeySuffix = &s
+	}
+
 	for _, tbl := range cfg.Tables {
-		tbl.FillDefaults()
+		tbl.FillDefaults(cfg)
 	}
 }
 
 func BuildPackageConfig(sql *SQLConfig) GoPackageConfig {
-	gocfg := GoPackageConfig{Imports: map[string]bool{}}
+	gocfg := GoPackageConfig{
+		Imports: map[string]bool{},
+	}
 	sql.FillPackageConfig(&gocfg)
 	return gocfg
 }
@@ -197,21 +230,24 @@ func main() {
 	flag.Parse()
 
 	args := flag.Args()
-	log.Printf("args: %v", args)
-	if len(args) != 1 {
-		panic(fmt.Errorf("expected 1 arg to config file, found: %v args", len(args)))
+	if len(args) != 2 {
+		log.Printf("args: %v", args)
+		panic(fmt.Errorf("expected the first arg to be a path to the config file and the second arg to be the generated code output path, found: %v args", len(args)))
 	}
+
+	inPath := args[0]
+	outPath := args[1]
 
 	templatePath = "templates/gogosql.go.tmpl"
 	pl = pluralize.NewClient()
 
-	yamlBytes, err := os.ReadFile(args[0])
+	yamlBytes, err := os.ReadFile(inPath)
 	if err != nil {
 		log.Fatal(err)
 	}
 
 	cfg := &SQLConfig{}
-	err = yaml.Unmarshal(yamlBytes, cfg)
+	err = yaml.UnmarshalStrict(yamlBytes, cfg)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -294,5 +330,9 @@ func main() {
 		log.Fatalf("Unable to read a tempory file before moving to generated code location: %s\n", path)
 	}
 
-	log.Println(string(bytes))
+	err = ioutil.WriteFile(outPath, bytes, 0644)
+	if err != nil {
+		log.Fatalf("unable to write generated code to path: %v, %v", outPath, err)
+	}
+	log.Printf("wrote generated code to: %v\n", outPath)
 }
