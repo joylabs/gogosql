@@ -1,6 +1,7 @@
 package main
 
 import (
+	_ "embed"
 	"flag"
 	"fmt"
 	"go/parser"
@@ -226,6 +227,8 @@ func BuildPackageConfig(sql *SQLConfig) GoPackageConfig {
 var (
 	pl           *pluralize.Client
 	templatePath string
+	//go:embed templates/gogosql.go.tmpl
+	templateData string
 )
 
 func main() {
@@ -243,14 +246,6 @@ func main() {
 	inPath := args[0]
 	outPath := args[1]
 
-	templatePath = path.Join(
-		os.Getenv("GOPATH"),
-		"github.com",
-		"joylabs",
-		"gogosql",
-		"templates",
-		"gogosql.go.tmpl",
-	)
 	pl = pluralize.NewClient()
 
 	yamlBytes, err := os.ReadFile(inPath)
@@ -294,7 +289,7 @@ func main() {
 	templateName := path.Base(templatePath)
 	temp, err := template.New(templateName).Funcs(template.FuncMap{
 		"Deref": func(i *ColumnReference) ColumnReference { return *i },
-	}).ParseFiles(templatePath)
+	}).Parse(templateData)
 	if err != nil {
 		log.Printf(">>> Error: %v\n", err)
 		log.Println()

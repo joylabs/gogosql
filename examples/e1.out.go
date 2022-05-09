@@ -1,8 +1,10 @@
 package kipsql
 
 import (
-  "time"
   "cloud.google.com/go/spanner"
+  "context"
+  "fmt"
+  "time"
 )
 
 type SpannerTX interface {
@@ -118,8 +120,8 @@ var (
 
 // Methods
 func (GoGoMessagesTable) PrimaryKey (
-    userId,
-    messageId,
+    userId string,
+    messageId string,
 ) GoGoMessagesPrimaryKey {
 	return GoGoMessagesPrimaryKey{
             userId,
@@ -167,7 +169,7 @@ func (r GoGoMessagesPrimaryKey) SpannerKey() spanner.Key {
 }
 
 func (GoGoCommunitiesTable) PrimaryKey (
-    communityId,
+    communityId string,
 ) GoGoCommunitiesPrimaryKey {
 	return GoGoCommunitiesPrimaryKey{
             communityId,
