@@ -98,6 +98,7 @@ func (cfg *TableConfig) PKColumns() []*ColumnConfig {
 	}
 	return r
 }
+
 func (cfg *TableConfig) Validate() error {
 	cfg.ColumnIndexes = map[ColumnReference]int{}
 
@@ -212,7 +213,11 @@ func (cfg *SQLConfig) FillDefaults() {
 
 func BuildPackageConfig(sql *SQLConfig) GoPackageConfig {
 	gocfg := GoPackageConfig{
-		Imports: map[string]bool{},
+		Imports: map[string]bool{
+			"context":                     true,
+			"cloud.google.com/go/spanner": true,
+			"fmt":                         true,
+		},
 	}
 	sql.FillPackageConfig(&gocfg)
 	return gocfg
@@ -238,7 +243,14 @@ func main() {
 	inPath := args[0]
 	outPath := args[1]
 
-	templatePath = "templates/gogosql.go.tmpl"
+	templatePath = path.Join(
+		os.Getenv("GOPATH"),
+		"github.com",
+		"joylabs",
+		"gogosql",
+		"templates",
+		"gogosql.go.tmpl",
+	)
 	pl = pluralize.NewClient()
 
 	yamlBytes, err := os.ReadFile(inPath)

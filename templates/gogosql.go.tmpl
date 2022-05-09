@@ -4,7 +4,6 @@ import (
   {{- range $key, $val := .Imports }}
   "{{$key}}"
   {{- end}}
-  "cloud.google.com/go/spanner"
 )
 
 type SpannerTX interface {
@@ -84,7 +83,7 @@ var (
 {{- range .Tables }}
 func ({{ .GoTable }}) PrimaryKey (
 {{- range .PKColumns }}
-    {{ .GoArg }},
+    {{ .GoArg }} {{ .Type.Name }},
 {{- end }}
 ) {{ .GoPrimaryKey }} {
 	return {{ .GoPrimaryKey }}{
