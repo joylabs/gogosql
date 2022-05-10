@@ -40,6 +40,5 @@ tables:
         type: *intType
       - name: "description"
         type: *stringType
-        nullable: true
     primaryKey:
       - "community_id"

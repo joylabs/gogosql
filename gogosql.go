@@ -26,7 +26,6 @@ type GoTypeConfig struct {
 type ColumnConfig struct {
 	Name     string
 	Type     GoTypeConfig
-	Nullable bool    `yaml:",omitempty"`
 	GoField  *string `yaml:",omitempty"`
 	GoArg    *string `yaml:",omitempty"`
 	GoColumn *string `yaml:",omitempty"`
